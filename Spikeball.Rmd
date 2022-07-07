@@ -1,0 +1,70 @@
+---
+title: "Analysis on Spikeball"
+author: "Kush Patel"
+date: "9/30/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+main <- read.csv('spikeball.csv')
+games <- read.csv('games.csv')
+grouped <- main %>% group_by(Game.ID, Team.ID) %>% summarise_at(vars(Left.Hand.Serves, Right.Hand.Serves, Serving.Faults, Aces, Kills, Spikes, Under.hand.hits, Left.hand.hits, Right.hand.hits, No.hand.hits, Behind.Back.Hits, Dives, Out.of.Position.Returns..out.of.the.circle., Errors, Hit.Faults, Spike.Blocks), list(sum))
+grouped <- merge(grouped, games, by=c("Game.ID", "Team.ID"))
+grouped
+```
+
+
+```{r}
+main <- main %>% rename(Out.of.Position = Out.of.Position.Returns..out.of.the.circle.) %>% mutate(Spike.Misses = Spikes - Kills) %>% mutate(Kill.Pct = Kills / Spikes, Total.Serves = Left.Hand.Serves + Right.Hand.Serves, Left.Right.Serve.Ratio = Left.Hand.Serves / Right.Hand.Serves, Left.Right.Hit.Ratio = Left.hand.hits / Right.hand.hits, Good.Play.Score = No.hand.hits + Behind.Back.Hits + Dives + Out.of.Position + (2 * Spike.Blocks) + (3 * Aces) + Kills, Bad.Play.Score = Hit.Faults + Serving.Faults + Errors)
+main
+```
+
+```{r}
+group_xtra <- grouped %>% rename(Out.of.Position = Out.of.Position.Returns..out.of.the.circle.) %>% mutate(Spike.Misses = Spikes - Kills) %>% mutate(Kill.Pct = Kills / Spikes, Total.Serves = Left.Hand.Serves + Right.Hand.Serves, Left.Right.Serve.Ratio = Left.Hand.Serves / Right.Hand.Serves, Left.Right.Hit.Ratio = Left.hand.hits / Right.hand.hits, Good.Play.Score = (2*Spike.Blocks) + (3*Aces) + Kills, Bad.Play.Score = Hit.Faults + Serving.Faults + Errors, Diff.by.Total = Diff / Total)
+group_xtra
+```
+
+```{r}
+spike.lm <- lm(Diff.by.Total ~ Good.Play.Score + Bad.Play.Score, data=group_xtra)
+summary(spike.lm)
+```
+```{r}
+spike.lm <- lm(Team.Score ~ Kills + Aces + Spike.Blocks, data=group_xtra)
+summary(spike.lm)
+```
+
+```{r}
+spike.mod <- lm(Team.Score ~ Good.Play.Score, data=group_xtra)
+summary(spike.mod)
+```
+```{r}
+spike.mod <- lm(Diff.by.Total ~ Good.Play.Score, data=group_xtra)
+summary(spike.mod)
+```
+
+
+
+
+```{r}
+ggplot(data = group_xtra, aes(x = Good.Play.Score, y = Diff.by.Total)) + geom_point(color="blue") + geom_line(data = fortify(spike.mod), aes(x = Good.Play.Score, y = .fitted), col = "blue") +
+  xlab('Good Play Score') +
+  ylab('Difference by Total') +
+  theme_bw()
+```
+
+```{r}
+ggplot(data = group_xtra, aes(x = Aces, y = jitter(Diff.by.Total))) + geom_point(color="blue") + theme_bw() + geom_smooth(method="lm") + ylab('Difference Over Total Points')
+```
+
+```{r}
+plot(group_xtra$Aces, group_xtra$Diff.by.Total, ylab='Difference by Total', xlab='Good Play Score', col='blue')
+```
+
